@@ -171,6 +171,8 @@ def run(
         model.warmup(imgsz=(1 if pt else batch_size, 3, imgsz, imgsz))  # warmup
         pad, rect = (0.0, False) if task == 'speed' else (0.5, pt)  # square inference for benchmarks
         task = task if task in ('train', 'val', 'test') else 'val'  # path to train/val/test images
+
+        #xzx 这里根据选择的task选择不同的图片进行测试
         dataloader = create_dataloader(data[task],
                                        imgsz,
                                        batch_size,
@@ -189,11 +191,14 @@ def run(
     class_map = coco80_to_coco91_class() if is_coco else list(range(1000))
     s = ('%22s' + '%11s' * 6) % ('Class', 'Images', 'Instances', 'P', 'R', 'mAP50', 'mAP50-95')
     tp, fp, p, r, f1, mp, mr, map50, ap50, map = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-    dt = Profile(), Profile(), Profile()  # profiling times
+    # profiling times #xzx 这里面的dt是为了记录后续每个dt所花费的时间，是为了后续计算speed
+    #这个操作可以不用在代码前后都加入time.time,直接将代码包进去就可以
+    dt = Profile(), Profile(), Profile()
     loss = torch.zeros(3, device=device)
     jdict, stats, ap, ap_class = [], [], [], []
     callbacks.run('on_val_start')
     pbar = tqdm(dataloader, desc=s, bar_format=TQDM_BAR_FORMAT)  # progress bar
+    #xzx 这里对于每一个batch  im就是image，targets就是labels
     for batch_i, (im, targets, paths, shapes) in enumerate(pbar):
         callbacks.run('on_val_batch_start')
         with dt[0]:
@@ -227,11 +232,13 @@ def run(
         # Metrics
         for si, pred in enumerate(preds):
             labels = targets[targets[:, 0] == si, 1:]
+            #nl表示真实label的数量，npr表示预测出label的数目
             nl, npr = labels.shape[0], pred.shape[0]  # number of labels, predictions
             path, shape = Path(paths[si]), shapes[si][0]
             correct = torch.zeros(npr, niou, dtype=torch.bool, device=device)  # init
             seen += 1
 
+            ##如果是没有预测出来label，但是真实是有label的，那么就在stats中记录空的内容
             if npr == 0:
                 if nl:
                     stats.append((correct, *torch.zeros((2, 0), device=device), labels[:, 0]))
