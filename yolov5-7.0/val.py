@@ -253,6 +253,9 @@ def run(
             scale_boxes(im[si].shape[1:], predn[:, :4], shape, shapes[si][1])  # native-space pred
 
             # Evaluate
+            #xzx 经过sacle_boxes之后的tbox才是真正的bounding box
+            #labelsn和label的不同在于修改了顺序,具体顺序见process_batch函数中的注释，且使用的是真正的tbox
+            #process_batch函数是在iou不同取值时计算correct
             if nl:
                 tbox = xywh2xyxy(labels[:, 1:5])  # target boxes
                 scale_boxes(im[si].shape[1:], tbox, shape, shapes[si][1])  # native-space labels
@@ -277,6 +280,7 @@ def run(
         callbacks.run('on_val_batch_end', batch_i, im, targets, paths, shapes, preds)
 
     # Compute metrics
+    #所有的batch最后都记录在stats中，先进行一个变换，之后进入ap_per_class函数计算各项指标
     stats = [torch.cat(x, 0).cpu().numpy() for x in zip(*stats)]  # to numpy
     if len(stats) and stats[0].any():
         tp, fp, p, r, f1, ap, ap_class = ap_per_class(*stats, plot=plots, save_dir=save_dir, names=names)
