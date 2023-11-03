@@ -281,6 +281,7 @@ def run(
 
     # Compute metrics
     #所有的batch最后都记录在stats中，先进行一个变换，之后进入ap_per_class函数计算各项指标
+    #test
     stats = [torch.cat(x, 0).cpu().numpy() for x in zip(*stats)]  # to numpy
     if len(stats) and stats[0].any():
         tp, fp, p, r, f1, ap, ap_class = ap_per_class(*stats, plot=plots, save_dir=save_dir, names=names)
