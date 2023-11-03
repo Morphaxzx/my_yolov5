@@ -1,3 +1,8 @@
+#notes by xzx
+#refer: https://blog.csdn.net/qq_38253797/article/details/119577291
+
+
+
 # YOLOv5 🚀 by Ultralytics, GPL-3.0 license
 """
 Validate a trained YOLOv5 detection model on a detection dataset
@@ -198,7 +203,7 @@ def run(
     jdict, stats, ap, ap_class = [], [], [], []
     callbacks.run('on_val_start')
     pbar = tqdm(dataloader, desc=s, bar_format=TQDM_BAR_FORMAT)  # progress bar
-    #xzx 这里对于每一个batch  im就是image，targets就是labels
+    #xzx 这里对于每一个batch  im就是image，targets就是labels, 这里其实就是对于每一张图片的处理
     for batch_i, (im, targets, paths, shapes) in enumerate(pbar):
         callbacks.run('on_val_batch_start')
         with dt[0]:
@@ -219,6 +224,8 @@ def run(
 
         # NMS
         targets[:, 2:] *= torch.tensor((width, height, width, height), device=device)  # to pixels
+        #xzx refer:https://blog.csdn.net/mch2869253130/article/details/118088278
+        #targets[:, 0] == i返回结果是tensor的True/False , True的时候即为原来的值，False的时候值为空
         lb = [targets[targets[:, 0] == i, 1:] for i in range(nb)] if save_hybrid else []  # for autolabelling
         with dt[2]:
             preds = non_max_suppression(preds,
@@ -230,6 +237,7 @@ def run(
                                         max_det=max_det)
 
         # Metrics
+        #xzx 这里si为不同类的编号，一张图片可能有很多类 ship car
         for si, pred in enumerate(preds):
             labels = targets[targets[:, 0] == si, 1:]
             #nl表示真实label的数量，npr表示预测出label的数目
@@ -250,14 +258,15 @@ def run(
             if single_cls:
                 pred[:, 5] = 0
             predn = pred.clone()
+            #xzx  # 将预测坐标映射到原图img中
             scale_boxes(im[si].shape[1:], predn[:, :4], shape, shapes[si][1])  # native-space pred
 
             # Evaluate
-            #xzx 经过sacle_boxes之后的tbox才是真正的bounding box
             #labelsn和label的不同在于修改了顺序,具体顺序见process_batch函数中的注释，且使用的是真正的tbox
             #process_batch函数是在iou不同取值时计算correct
             if nl:
                 tbox = xywh2xyxy(labels[:, 1:5])  # target boxes
+                # xzx 将预测坐标映射到原图img中 经过sacle_boxes之后的tbox才是真正的bounding box
                 scale_boxes(im[si].shape[1:], tbox, shape, shapes[si][1])  # native-space labels
                 labelsn = torch.cat((labels[:, 0:1], tbox), 1)  # native-space labels
                 correct = process_batch(predn, labelsn, iouv)
@@ -281,8 +290,7 @@ def run(
 
     # Compute metrics
     #所有的batch最后都记录在stats中，先进行一个变换，之后进入ap_per_class函数计算各项指标
-    #test
-    #test2
+    #这里将所有的(correct, conf, pcls, tcls)每一类单独放在一起
     stats = [torch.cat(x, 0).cpu().numpy() for x in zip(*stats)]  # to numpy
     if len(stats) and stats[0].any():
         tp, fp, p, r, f1, ap, ap_class = ap_per_class(*stats, plot=plots, save_dir=save_dir, names=names)
